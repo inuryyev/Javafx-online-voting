@@ -15,8 +15,6 @@ public class VotingSystem extends Application {
     private Stage primaryStage;
     private Connection connection;
     private boolean isAdminLoggedIn = false;
-
-
     private ObservableList<Question> currentQuestions;
     private int currentQuestionIndex;
 
@@ -48,8 +46,7 @@ public class VotingSystem extends Application {
                 showLoginScreen();
             }
         });
-
-        surveysButton.setOnAction(e -> showUserSurveySelectionScreen());
+        surveysButton.setOnAction(e -> startUserSurvey());
 
         VBox layout = new VBox(20, titleLabel, adminPanelButton, surveysButton);
         layout.setAlignment(Pos.CENTER);
@@ -60,38 +57,24 @@ public class VotingSystem extends Application {
         primaryStage.show();
     }
 
-    private void showUserSurveySelectionScreen() {
-        Label titleLabel = new Label("Select Survey");
-        ComboBox<Survey> surveyDropdown = new ComboBox<>();
-        ObservableList<Survey> surveys = FXCollections.observableArrayList();
-        String query = "SELECT id, title FROM surveys";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                surveys.add(new Survey(rs.getInt("id"), rs.getString("title")));
+    private void startUserSurvey() {
+        Survey survey = null;
+        String query = "SELECT id, title FROM surveys LIMIT 1";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+            if (rs.next()) {
+                survey = new Survey(rs.getInt("id"), rs.getString("title"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        surveyDropdown.setItems(surveys);
-
-        Button startButton = new Button("Start Survey");
-        startButton.setOnAction(e -> {
-            Survey selectedSurvey = surveyDropdown.getValue();
-            if (selectedSurvey == null) {
-                Alert alert = new Alert(Alert.AlertType.WARNING, "Lütfen bir survey seçiniz.");
-                alert.showAndWait();
-            } else {
-                showUserSurveyScreen(selectedSurvey);
-            }
-        });
-
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showMainScreen());
-
-        VBox layout = new VBox(20, titleLabel, surveyDropdown, startButton, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-        primaryStage.setScene(scene);
+        if (survey == null) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No survey available.");
+            alert.showAndWait();
+            showMainScreen();
+            return;
+        }
+        showUserSurveyScreen(survey);
     }
 
     private void showUserSurveyScreen(Survey survey) {
@@ -108,17 +91,15 @@ public class VotingSystem extends Application {
             e.printStackTrace();
         }
         if (currentQuestions.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Bu survey için soru bulunamadı.");
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No questions found for this survey.");
             alert.showAndWait();
             showMainScreen();
             return;
         }
-
         showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
     }
 
     private void showQuestionScreen(Survey survey, Question question) {
-
         ObservableList<Option> options = FXCollections.observableArrayList();
         String query = "SELECT id, option_text FROM options WHERE question_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
@@ -150,26 +131,37 @@ public class VotingSystem extends Application {
         submitButton.setOnAction(e -> {
             RadioButton selected = (RadioButton) toggleGroup.getSelectedToggle();
             if (selected == null) {
-                errorLabel.setText("Lütfen bir seçenek seçiniz.");
+                errorLabel.setText("Please select an option.");
                 return;
             }
+            Option selectedOption = (Option) selected.getUserData();
+            recordVote(survey.getId(), question.getId(), selectedOption.getId());
             currentQuestionIndex++;
             if (currentQuestionIndex < currentQuestions.size()) {
                 showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
             } else {
-                Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "Survey bitdi.");
+                Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "Survey completed.");
                 finishedAlert.showAndWait();
                 showMainScreen();
             }
         });
 
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showMainScreen());
-
-        VBox layout = new VBox(20, surveyTitleLabel, questionLabel, optionsBox, errorLabel, submitButton, backButton);
+        VBox layout = new VBox(20, surveyTitleLabel, questionLabel, optionsBox, errorLabel, submitButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
         primaryStage.setScene(scene);
+    }
+
+    private void recordVote(int surveyId, int questionId, int optionId) {
+        String query = "INSERT INTO votes (survey_id, question_id, option_id) VALUES (?, ?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, surveyId);
+            stmt.setInt(2, questionId);
+            stmt.setInt(3, optionId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showSurveyCrudScreen() {
@@ -218,14 +210,14 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, titleLabel, surveyTitleField, addSurveyButton, updateSurveyButton, surveyListView, deleteSurveyButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
     }
 
     private void loadSurveys(ObservableList<Survey> surveyList) {
         surveyList.clear();
         String query = "SELECT id, title FROM surveys";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
                 surveyList.add(survey);
@@ -266,7 +258,6 @@ public class VotingSystem extends Application {
         }
     }
 
-
     private VBox createHeader() {
         Button homeButton = new Button("Home Page");
         homeButton.setOnAction(e -> showMainScreen());
@@ -299,7 +290,6 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, createHeader(), loginLabel, usernameField, passwordField, loginButton, messageLabel, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
     }
 
@@ -324,8 +314,6 @@ public class VotingSystem extends Application {
         Button logoutButton = new Button("Logout");
 
         addSurveyButton.setOnAction(e -> showSurveyCrudScreen());
-        manageQuestionsButton.setOnAction(e -> showQuestionsCrudScreen());
-        manageOptionsButton.setOnAction(e -> showOptionsCrudScreen());
         logoutButton.setOnAction(e -> {
             isAdminLoggedIn = false;
             showMainScreen();
@@ -334,270 +322,7 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, createHeader(), adminLabel, addSurveyButton, manageQuestionsButton, manageOptionsButton, logoutButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
-    }
-
-
-    private void showQuestionsCrudScreen() {
-        Label titleLabel = new Label("Manage Questions");
-        Label surveyLabel = new Label("Select Survey:");
-        ComboBox<Survey> surveyDropdown = new ComboBox<>();
-        TextField questionField = new TextField();
-        questionField.setPromptText("Question Text");
-        Button addQuestionButton = new Button("Add Question");
-        Button updateQuestionButton = new Button("Update Selected");
-        Button deleteQuestionButton = new Button("Delete Selected");
-        ListView<Question> questionListView = new ListView<>();
-        ObservableList<Question> questionList = FXCollections.observableArrayList();
-
-        loadSurveysIntoDropdown(surveyDropdown);
-        surveyDropdown.setOnAction(e -> {
-            Survey selectedSurvey = surveyDropdown.getValue();
-            if (selectedSurvey != null) {
-                loadQuestions(questionList, selectedSurvey.getId());
-            }
-        });
-        questionListView.setItems(questionList);
-
-        addQuestionButton.setOnAction(e -> {
-            Survey selectedSurvey = surveyDropdown.getValue();
-            String questionText = questionField.getText();
-            if (selectedSurvey != null && !questionText.isEmpty()) {
-                addQuestion(selectedSurvey.getId(), questionText);
-                questionField.clear();
-                loadQuestions(questionList, selectedSurvey.getId());
-            }
-        });
-
-        updateQuestionButton.setOnAction(e -> {
-            Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
-            String newQuestionText = questionField.getText();
-            if (selectedQuestion != null && !newQuestionText.isEmpty()) {
-                updateQuestion(selectedQuestion.getId(), newQuestionText);
-                questionField.clear();
-                Survey selectedSurvey = surveyDropdown.getValue();
-                if (selectedSurvey != null) {
-                    loadQuestions(questionList, selectedSurvey.getId());
-                }
-            }
-        });
-
-        deleteQuestionButton.setOnAction(e -> {
-            Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
-            if (selectedQuestion != null) {
-                deleteQuestion(selectedQuestion.getId());
-                Survey selectedSurvey = surveyDropdown.getValue();
-                if (selectedSurvey != null) {
-                    loadQuestions(questionList, selectedSurvey.getId());
-                }
-            }
-        });
-
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showAdminPanel());
-
-        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-
-        primaryStage.setScene(scene);
-    }
-
-    private void loadQuestions(ObservableList<Question> questionList, int surveyId) {
-        questionList.clear();
-        String query = "SELECT id, question_text FROM questions WHERE survey_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, surveyId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
-                questionList.add(question);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void addQuestion(int surveyId, String questionText) {
-        String query = "INSERT INTO questions (survey_id, question_text) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, surveyId);
-            stmt.setString(2, questionText);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateQuestion(int questionId, String newQuestionText) {
-        String query = "UPDATE questions SET question_text = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, newQuestionText);
-            stmt.setInt(2, questionId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void deleteQuestion(int questionId) {
-        String query = "DELETE FROM questions WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, questionId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void loadSurveysIntoDropdown(ComboBox<Survey> dropdown) {
-        dropdown.getItems().clear();
-        String query = "SELECT id, title FROM surveys";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
-                dropdown.getItems().add(survey);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    private void showOptionsCrudScreen() {
-        Label titleLabel = new Label("Manage Options");
-        Label surveyLabel = new Label("Select Survey:");
-        ComboBox<Survey> surveyDropdown = new ComboBox<>();
-        Label questionLabel = new Label("Select Question:");
-        ComboBox<Question> questionDropdown = new ComboBox<>();
-        TextField optionField = new TextField();
-        optionField.setPromptText("Option Text");
-        Button addOptionButton = new Button("Add Option");
-        Button updateOptionButton = new Button("Update Selected");
-        Button deleteOptionButton = new Button("Delete Selected");
-        ListView<Option> optionListView = new ListView<>();
-        ObservableList<Option> optionList = FXCollections.observableArrayList();
-
-        loadSurveysIntoDropdown(surveyDropdown);
-        surveyDropdown.setOnAction(e -> {
-            Survey selectedSurvey = surveyDropdown.getValue();
-            if (selectedSurvey != null) {
-                loadQuestionsIntoDropdown(questionDropdown, selectedSurvey.getId());
-            }
-        });
-        questionDropdown.setOnAction(e -> {
-            Question selectedQuestion = questionDropdown.getValue();
-            if (selectedQuestion != null) {
-                loadOptions(optionList, selectedQuestion.getId());
-            }
-        });
-        optionListView.setItems(optionList);
-
-        addOptionButton.setOnAction(e -> {
-            Question selectedQuestion = questionDropdown.getValue();
-            String optionText = optionField.getText();
-            if (selectedQuestion != null && !optionText.isEmpty()) {
-                addOption(selectedQuestion.getId(), optionText);
-                optionField.clear();
-                loadOptions(optionList, selectedQuestion.getId());
-            }
-        });
-
-        updateOptionButton.setOnAction(e -> {
-            Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
-            String newOptionText = optionField.getText();
-            if (selectedOption != null && !newOptionText.isEmpty()) {
-                updateOption(selectedOption.getId(), newOptionText);
-                optionField.clear();
-                Question selectedQuestion = questionDropdown.getValue();
-                if (selectedQuestion != null) {
-                    loadOptions(optionList, selectedQuestion.getId());
-                }
-            }
-        });
-
-        deleteOptionButton.setOnAction(e -> {
-            Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
-            if (selectedOption != null) {
-                deleteOption(selectedOption.getId());
-                Question selectedQuestion = questionDropdown.getValue();
-                if (selectedQuestion != null) {
-                    loadOptions(optionList, selectedQuestion.getId());
-                }
-            }
-        });
-
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showAdminPanel());
-
-        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-
-        primaryStage.setScene(scene);
-    }
-
-    private void loadQuestionsIntoDropdown(ComboBox<Question> dropdown, int surveyId) {
-        dropdown.getItems().clear();
-        String query = "SELECT id, question_text FROM questions WHERE survey_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, surveyId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
-                dropdown.getItems().add(question);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void loadOptions(ObservableList<Option> optionList, int questionId) {
-        optionList.clear();
-        String query = "SELECT id, option_text FROM options WHERE question_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, questionId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Option option = new Option(rs.getInt("id"), rs.getString("option_text"));
-                optionList.add(option);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void addOption(int questionId, String optionText) {
-        String query = "INSERT INTO options (question_id, option_text) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, questionId);
-            stmt.setString(2, optionText);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateOption(int optionId, String newOptionText) {
-        String query = "UPDATE options SET option_text = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, newOptionText);
-            stmt.setInt(2, optionId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void deleteOption(int optionId) {
-        String query = "DELETE FROM options WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, optionId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
     }
 
     public static void main(String[] args) {
@@ -616,11 +341,9 @@ public class VotingSystem extends Application {
         public int getId() {
             return id;
         }
-
         public String getTitle() {
             return title;
         }
-
         @Override
         public String toString() {
             return title;
@@ -639,11 +362,9 @@ public class VotingSystem extends Application {
         public int getId() {
             return id;
         }
-
         public String getText() {
             return text;
         }
-
         @Override
         public String toString() {
             return text;
@@ -662,11 +383,9 @@ public class VotingSystem extends Application {
         public int getId() {
             return id;
         }
-
         public String getText() {
             return text;
         }
-
         @Override
         public String toString() {
             return text;
