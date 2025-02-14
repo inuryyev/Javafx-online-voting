@@ -337,7 +337,114 @@ public class VotingSystem extends Application {
     }
 
     private void showOptionsCrudScreen() {
+        Label titleLabel = new Label("Manage Options");
+        ComboBox<String> questionDropdown = new ComboBox<>();
+        TextField optionField = new TextField();
+        optionField.setPromptText("Option Text");
+        Button addOptionButton = new Button("Add Option");
+        Button updateOptionButton = new Button("Update Selected");
+        Button deleteOptionButton = new Button("Delete Selected");
+        ListView<String> optionListView = new ListView<>();
+        ObservableList<String> optionList = FXCollections.observableArrayList();
 
+        loadQuestionsIntoDropdown(questionDropdown);
+        questionDropdown.setOnAction(e -> loadOptions(optionList, questionDropdown.getValue()));
+        optionListView.setItems(optionList);
+
+        addOptionButton.setOnAction(e -> {
+            String questionText = questionDropdown.getValue();
+            String optionText = optionField.getText();
+            if (questionText != null && !optionText.isEmpty()) {
+                addOption(questionText, optionText);
+                optionField.clear();
+                loadOptions(optionList, questionText);
+            }
+        });
+
+        updateOptionButton.setOnAction(e -> {
+            String selectedOption = optionListView.getSelectionModel().getSelectedItem();
+            String newOptionText = optionField.getText();
+            if (selectedOption != null && !newOptionText.isEmpty()) {
+                updateOption(selectedOption, newOptionText);
+                optionField.clear();
+                loadOptions(optionList, questionDropdown.getValue());
+            }
+        });
+
+        deleteOptionButton.setOnAction(e -> {
+            String selectedOption = optionListView.getSelectionModel().getSelectedItem();
+            if (selectedOption != null) {
+                deleteOption(selectedOption);
+                loadOptions(optionList, questionDropdown.getValue());
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showAdminPanel());
+
+        VBox layout = new VBox(20, titleLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+    }
+
+    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown) {
+        dropdown.getItems().clear();
+        String query = "SELECT question_text FROM questions";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                dropdown.getItems().add(rs.getString("question_text"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadOptions(ObservableList<String> optionList, String questionText) {
+        optionList.clear();
+        String query = "SELECT option_text FROM options WHERE question_id = (SELECT id FROM questions WHERE question_text = ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, questionText);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                optionList.add(rs.getString("option_text"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addOption(String questionText, String optionText) {
+        String query = "INSERT INTO options (question_id, option_text) VALUES ((SELECT id FROM questions WHERE question_text = ?), ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, questionText);
+            stmt.setString(2, optionText);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateOption(String oldOption, String newOption) {
+        String query = "UPDATE options SET option_text = ? WHERE option_text = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, newOption);
+            stmt.setString(2, oldOption);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteOption(String optionText) {
+        String query = "DELETE FROM options WHERE option_text = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, optionText);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showSurveysScreen() {
