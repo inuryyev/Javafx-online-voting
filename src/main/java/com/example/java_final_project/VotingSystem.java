@@ -1,6 +1,8 @@
 package com.example.java_final_project;
 
 import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -51,6 +53,103 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
         primaryStage.setTitle("Voting System");
         primaryStage.show();
+    }
+
+    private void showSurveyCrudScreen() {
+        Label titleLabel = new Label("Manage Surveys");
+        TextField surveyTitleField = new TextField();
+        surveyTitleField.setPromptText("Survey Title");
+        Button addSurveyButton = new Button("Add Survey");
+        Button updateSurveyButton = new Button("Update Selected");
+        Button deleteSurveyButton = new Button("Delete Selected");
+        ListView<String> surveyListView = new ListView<>();
+        ObservableList<String> surveyList = FXCollections.observableArrayList();
+
+        loadSurveys(surveyList);
+        surveyListView.setItems(surveyList);
+
+        addSurveyButton.setOnAction(e -> {
+            String surveyTitle = surveyTitleField.getText();
+            if (!surveyTitle.isEmpty()) {
+                addSurvey(surveyTitle);
+                surveyTitleField.clear();
+                loadSurveys(surveyList);
+            }
+        });
+
+        updateSurveyButton.setOnAction(e -> {
+            String selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
+            String newTitle = surveyTitleField.getText();
+            if (selectedSurvey != null && !newTitle.isEmpty()) {
+                updateSurvey(selectedSurvey, newTitle);
+                surveyTitleField.clear();
+                loadSurveys(surveyList);
+            }
+        });
+
+        deleteSurveyButton.setOnAction(e -> {
+            String selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
+            if (selectedSurvey != null) {
+                deleteSurvey(selectedSurvey);
+                loadSurveys(surveyList);
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showAdminPanel());
+
+        VBox layout = new VBox(20, titleLabel, surveyTitleField, addSurveyButton, updateSurveyButton, surveyListView, deleteSurveyButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+    }
+
+    private void loadSurveys(ObservableList<String> surveyList) {
+        surveyList.clear();
+        String query = "SELECT title FROM surveys";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                surveyList.add(rs.getString("title"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addSurvey(String title) {
+        String query = "INSERT INTO surveys (title) VALUES (?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, title);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSurvey(String oldTitle, String newTitle) {
+        String query = "UPDATE surveys SET title = ? WHERE title = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, newTitle);
+            stmt.setString(2, oldTitle);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteSurvey(String title) {
+        String query = "DELETE FROM surveys WHERE title = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, title);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
     }
 
     private VBox createHeader() {
@@ -124,9 +223,7 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    private void showSurveyCrudScreen() {
 
-    }
 
     private void showQuestionsCrudScreen() {
 
@@ -149,7 +246,5 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    public static void main(String[]args){
-        launch(args);
-    }
+
 }
