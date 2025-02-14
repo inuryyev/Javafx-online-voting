@@ -278,17 +278,7 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    private void loadSurveysIntoDropdown(ComboBox<String> dropdown) {
-        dropdown.getItems().clear();
-        String query = "SELECT title FROM surveys";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                dropdown.getItems().add(rs.getString("title"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
+
 
     private void loadQuestions(ObservableList<String> questionList, String surveyTitle) {
         questionList.clear();
@@ -336,8 +326,40 @@ public class VotingSystem extends Application {
         }
     }
 
+
+    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown) {
+        dropdown.getItems().clear();
+        String query = "SELECT question_text FROM questions";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                dropdown.getItems().add(rs.getString("question_text"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+
+
+
+    private void showSurveysScreen() {
+        Label surveysLabel = new Label("Surveys Page");
+        Button backButton = new Button("Back");
+
+        backButton.setOnAction(e -> showMainScreen());
+
+        VBox layout = new VBox(20, createHeader(), surveysLabel, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+    }
+
     private void showOptionsCrudScreen() {
         Label titleLabel = new Label("Manage Options");
+        ComboBox<String> surveyDropdown = new ComboBox<>();
         ComboBox<String> questionDropdown = new ComboBox<>();
         TextField optionField = new TextField();
         optionField.setPromptText("Option Text");
@@ -347,7 +369,8 @@ public class VotingSystem extends Application {
         ListView<String> optionListView = new ListView<>();
         ObservableList<String> optionList = FXCollections.observableArrayList();
 
-        loadQuestionsIntoDropdown(questionDropdown);
+        loadSurveysIntoDropdown(surveyDropdown);
+        surveyDropdown.setOnAction(e -> loadQuestionsIntoDropdown(questionDropdown, surveyDropdown.getValue()));
         questionDropdown.setOnAction(e -> loadOptions(optionList, questionDropdown.getValue()));
         optionListView.setItems(optionList);
 
@@ -382,17 +405,31 @@ public class VotingSystem extends Application {
         Button backButton = new Button("Back");
         backButton.setOnAction(e -> showAdminPanel());
 
-        VBox layout = new VBox(20, titleLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
+        VBox layout = new VBox(20, titleLabel, surveyDropdown, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
     }
 
-    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown) {
+    private void loadSurveysIntoDropdown(ComboBox<String> dropdown) {
         dropdown.getItems().clear();
-        String query = "SELECT question_text FROM questions";
+        String query = "SELECT title FROM surveys";
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                dropdown.getItems().add(rs.getString("title"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown, String surveyTitle) {
+        dropdown.getItems().clear();
+        String query = "SELECT question_text FROM questions WHERE survey_id = (SELECT id FROM surveys WHERE title = ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, surveyTitle);
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 dropdown.getItems().add(rs.getString("question_text"));
             }
@@ -445,19 +482,6 @@ public class VotingSystem extends Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-
-    private void showSurveysScreen() {
-        Label surveysLabel = new Label("Surveys Page");
-        Button backButton = new Button("Back");
-
-        backButton.setOnAction(e -> showMainScreen());
-
-        VBox layout = new VBox(20, createHeader(), surveysLabel, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-
-        primaryStage.setScene(scene);
     }
 
 
