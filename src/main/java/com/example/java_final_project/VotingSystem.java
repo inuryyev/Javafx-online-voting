@@ -39,11 +39,19 @@ public class VotingSystem extends Application {
 
         VBox layout = new VBox(20, titleLabel, adminPanelButton, surveysButton);
         layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 400, 300);
+        Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
         primaryStage.setTitle("Voting System");
         primaryStage.show();
+    }
+
+    private VBox createHeader() {
+        Button homeButton = new Button("Home Page");
+        homeButton.setOnAction(e -> showMainScreen());
+        VBox header = new VBox(homeButton);
+        header.setAlignment(Pos.TOP_CENTER);
+        return header;
     }
 
     private void showLoginScreen() {
@@ -66,9 +74,9 @@ public class VotingSystem extends Application {
 
         backButton.setOnAction(e -> showMainScreen());
 
-        VBox layout = new VBox(20, loginLabel, usernameField, passwordField, loginButton, messageLabel, backButton);
+        VBox layout = new VBox(20, createHeader(), loginLabel, usernameField, passwordField, loginButton, messageLabel, backButton);
         layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 400, 300);
+        Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
     }
@@ -91,9 +99,9 @@ public class VotingSystem extends Application {
         Button logoutButton = new Button("Logout");
         logoutButton.setOnAction(e -> showMainScreen());
 
-        VBox layout = new VBox(20, adminLabel, logoutButton);
+        VBox layout = new VBox(20, createHeader(), adminLabel, logoutButton);
         layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 400, 300);
+        Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
     }
@@ -104,9 +112,9 @@ public class VotingSystem extends Application {
 
         backButton.setOnAction(e -> showMainScreen());
 
-        VBox layout = new VBox(20, surveysLabel, backButton);
+        VBox layout = new VBox(20, createHeader(), surveysLabel, backButton);
         layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 400, 300);
+        Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
     }
