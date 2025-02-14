@@ -12,6 +12,7 @@ public class VotingSystem extends Application {
 
     private Stage primaryStage;
     private Connection connection;
+    private boolean isAdminLoggedIn = false;
 
     @Override
     public void start(Stage primaryStage) {
@@ -34,7 +35,13 @@ public class VotingSystem extends Application {
         Button adminPanelButton = new Button("Admin Panel");
         Button surveysButton = new Button("Surveys");
 
-        adminPanelButton.setOnAction(e -> showLoginScreen());
+        adminPanelButton.setOnAction(e -> {
+            if (isAdminLoggedIn) {
+                showAdminPanel();
+            } else {
+                showLoginScreen();
+            }
+        });
         surveysButton.setOnAction(e -> showSurveysScreen());
 
         VBox layout = new VBox(20, titleLabel, adminPanelButton, surveysButton);
@@ -66,6 +73,7 @@ public class VotingSystem extends Application {
 
         loginButton.setOnAction(e -> {
             if (authenticateAdmin(usernameField.getText(), passwordField.getText())) {
+                isAdminLoggedIn = true;
                 showAdminPanel();
             } else {
                 messageLabel.setText("Invalid credentials");
@@ -97,7 +105,10 @@ public class VotingSystem extends Application {
     private void showAdminPanel() {
         Label adminLabel = new Label("Admin Panel");
         Button logoutButton = new Button("Logout");
-        logoutButton.setOnAction(e -> showMainScreen());
+        logoutButton.setOnAction(e -> {
+            isAdminLoggedIn = false;
+            showMainScreen();
+        });
 
         VBox layout = new VBox(20, createHeader(), adminLabel, logoutButton);
         layout.setAlignment(Pos.CENTER);
