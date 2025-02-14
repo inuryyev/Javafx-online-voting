@@ -11,6 +11,7 @@ module com.example.java_final_project {
     requires eu.hansolo.tilesfx;
     requires com.almasb.fxgl.all;
     requires java.desktop;
+    requires java.sql;
 
     opens com.example.java_final_project to javafx.fxml;
     exports com.example.java_final_project;

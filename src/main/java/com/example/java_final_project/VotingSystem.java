@@ -3,19 +3,30 @@ package com.example.java_final_project;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import java.sql.*;
 
 public class VotingSystem extends Application {
 
     private Stage primaryStage;
+    private Connection connection;
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
+        connectToDatabase();
         showMainScreen();
+    }
+
+    private void connectToDatabase() {
+        try {
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/voting_system", "root", "");
+            System.out.println("Database connected successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showMainScreen() {
@@ -37,23 +48,47 @@ public class VotingSystem extends Application {
 
     private void showLoginScreen() {
         Label loginLabel = new Label("Admin Login");
+        TextField usernameField = new TextField();
+        usernameField.setPromptText("Username");
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Password");
         Button loginButton = new Button("Login");
         Button backButton = new Button("Back");
+        Label messageLabel = new Label();
 
-        loginButton.setOnAction(e -> showAdminPanel());
+        loginButton.setOnAction(e -> {
+            if (authenticateAdmin(usernameField.getText(), passwordField.getText())) {
+                showAdminPanel();
+            } else {
+                messageLabel.setText("Invalid credentials");
+            }
+        });
+
         backButton.setOnAction(e -> showMainScreen());
 
-        VBox layout = new VBox(20, loginLabel, loginButton, backButton);
+        VBox layout = new VBox(20, loginLabel, usernameField, passwordField, loginButton, messageLabel, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 400, 300);
 
         primaryStage.setScene(scene);
     }
 
+    private boolean authenticateAdmin(String username, String password) {
+        String query = "SELECT * FROM users WHERE username = ? AND password = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            ResultSet rs = stmt.executeQuery();
+            return rs.next();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     private void showAdminPanel() {
         Label adminLabel = new Label("Admin Panel");
         Button logoutButton = new Button("Logout");
-
         logoutButton.setOnAction(e -> showMainScreen());
 
         VBox layout = new VBox(20, adminLabel, logoutButton);
