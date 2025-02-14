@@ -359,7 +359,9 @@ public class VotingSystem extends Application {
 
     private void showOptionsCrudScreen() {
         Label titleLabel = new Label("Manage Options");
+        Label surveyLabel = new Label("Select Survey:");
         ComboBox<String> surveyDropdown = new ComboBox<>();
+        Label questionLabel = new Label("Select Question:");
         ComboBox<String> questionDropdown = new ComboBox<>();
         TextField optionField = new TextField();
         optionField.setPromptText("Option Text");
@@ -405,7 +407,7 @@ public class VotingSystem extends Application {
         Button backButton = new Button("Back");
         backButton.setOnAction(e -> showAdminPanel());
 
-        VBox layout = new VBox(20, titleLabel, surveyDropdown, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
+        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
 
