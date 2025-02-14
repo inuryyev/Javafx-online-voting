@@ -15,6 +15,8 @@ public class VotingSystem extends Application {
     private Stage primaryStage;
     private Connection connection;
     private boolean isAdminLoggedIn = false;
+    private ObservableList<Survey> currentSurveys;
+    private int currentSurveyIndex;
     private ObservableList<Question> currentQuestions;
     private int currentQuestionIndex;
 
@@ -58,23 +60,24 @@ public class VotingSystem extends Application {
     }
 
     private void startUserSurvey() {
-        Survey survey = null;
-        String query = "SELECT id, title FROM surveys LIMIT 1";
+        currentSurveys = FXCollections.observableArrayList();
+        String query = "SELECT id, title FROM surveys";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
-            if (rs.next()) {
-                survey = new Survey(rs.getInt("id"), rs.getString("title"));
+            while (rs.next()) {
+                currentSurveys.add(new Survey(rs.getInt("id"), rs.getString("title")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        if (survey == null) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No survey available.");
+        if (currentSurveys.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No surveys available.");
             alert.showAndWait();
             showMainScreen();
             return;
         }
-        showUserSurveyScreen(survey);
+        currentSurveyIndex = 0;
+        showUserSurveyScreen(currentSurveys.get(currentSurveyIndex));
     }
 
     private void showUserSurveyScreen(Survey survey) {
@@ -93,7 +96,7 @@ public class VotingSystem extends Application {
         if (currentQuestions.isEmpty()) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION, "No questions found for this survey.");
             alert.showAndWait();
-            showMainScreen();
+            showNextSurvey();
             return;
         }
         showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
@@ -140,9 +143,7 @@ public class VotingSystem extends Application {
             if (currentQuestionIndex < currentQuestions.size()) {
                 showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
             } else {
-                Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "Survey completed.");
-                finishedAlert.showAndWait();
-                showMainScreen();
+                showNextSurvey();
             }
         });
 
@@ -150,6 +151,18 @@ public class VotingSystem extends Application {
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
         primaryStage.setScene(scene);
+    }
+
+    private void showNextSurvey() {
+        currentSurveyIndex++;
+        if (currentSurveyIndex < currentSurveys.size()) {
+            Survey nextSurvey = currentSurveys.get(currentSurveyIndex);
+            showUserSurveyScreen(nextSurvey);
+        } else {
+            Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "All surveys completed.");
+            finishedAlert.showAndWait();
+            showMainScreen();
+        }
     }
 
     private void recordVote(int surveyId, int questionId, int optionId) {
