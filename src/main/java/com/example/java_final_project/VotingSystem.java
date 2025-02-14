@@ -1,11 +1,21 @@
 package com.example.java_final_project;
 
 import javafx.application.Application;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import java.sql.*;
@@ -53,7 +63,6 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, titleLabel, adminPanelButton, surveysButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
         primaryStage.setTitle("Voting System");
         primaryStage.show();
@@ -62,8 +71,7 @@ public class VotingSystem extends Application {
     private void startUserSurvey() {
         currentSurveys = FXCollections.observableArrayList();
         String query = "SELECT id, title FROM surveys";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 currentSurveys.add(new Survey(rs.getInt("id"), rs.getString("title")));
             }
@@ -71,8 +79,7 @@ public class VotingSystem extends Application {
             e.printStackTrace();
         }
         if (currentSurveys.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No surveys available.");
-            alert.showAndWait();
+            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION, "No surveys available.").showAndWait();
             showMainScreen();
             return;
         }
@@ -94,8 +101,7 @@ public class VotingSystem extends Application {
             e.printStackTrace();
         }
         if (currentQuestions.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "No questions found for this survey.");
-            alert.showAndWait();
+            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION, "No questions found for this survey.").showAndWait();
             showNextSurvey();
             return;
         }
@@ -159,8 +165,7 @@ public class VotingSystem extends Application {
             Survey nextSurvey = currentSurveys.get(currentSurveyIndex);
             showUserSurveyScreen(nextSurvey);
         } else {
-            Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "All surveys completed.");
-            finishedAlert.showAndWait();
+            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION, "All surveys completed.").showAndWait();
             showMainScreen();
         }
     }
@@ -175,6 +180,46 @@ public class VotingSystem extends Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void showVotesScreen() {
+        TableView<VoteRecord> table = new TableView<>();
+        TableColumn<VoteRecord, String> surveyCol = new TableColumn<>("Survey");
+        surveyCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getSurveyTitle()));
+        TableColumn<VoteRecord, String> questionCol = new TableColumn<>("Question");
+        questionCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getQuestionText()));
+        TableColumn<VoteRecord, String> optionCol = new TableColumn<>("Option");
+        optionCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getOptionText()));
+        TableColumn<VoteRecord, String> dateCol = new TableColumn<>("Voted At");
+        dateCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getVotedAt()));
+        table.getColumns().addAll(surveyCol, questionCol, optionCol, dateCol);
+
+        ObservableList<VoteRecord> votesList = FXCollections.observableArrayList();
+        String query = "SELECT s.title AS survey_title, q.question_text, o.option_text, v.voted_at " +
+                "FROM votes v " +
+                "JOIN surveys s ON v.survey_id = s.id " +
+                "JOIN questions q ON v.question_id = q.id " +
+                "JOIN options o ON v.option_id = o.id " +
+                "ORDER BY v.voted_at";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                votesList.add(new VoteRecord(rs.getString("survey_title"),
+                        rs.getString("question_text"),
+                        rs.getString("option_text"),
+                        rs.getString("voted_at")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        table.setItems(votesList);
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showAdminPanel());
+
+        VBox layout = new VBox(20, table, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+        primaryStage.setScene(scene);
     }
 
     private void showSurveyCrudScreen() {
@@ -229,11 +274,9 @@ public class VotingSystem extends Application {
     private void loadSurveys(ObservableList<Survey> surveyList) {
         surveyList.clear();
         String query = "SELECT id, title FROM surveys";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
-                surveyList.add(survey);
+                surveyList.add(new Survey(rs.getInt("id"), rs.getString("title")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -297,7 +340,6 @@ public class VotingSystem extends Application {
                 messageLabel.setText("Invalid credentials");
             }
         });
-
         backButton.setOnAction(e -> showMainScreen());
 
         VBox layout = new VBox(20, createHeader(), loginLabel, usernameField, passwordField, loginButton, messageLabel, backButton);
@@ -324,18 +366,19 @@ public class VotingSystem extends Application {
         Button addSurveyButton = new Button("Add Survey");
         Button manageQuestionsButton = new Button("Manage Questions");
         Button manageOptionsButton = new Button("Manage Options");
+        Button viewVotesButton = new Button("View Votes");
         Button logoutButton = new Button("Logout");
 
+        addSurveyButton.setOnAction(e -> showSurveyCrudScreen());
         manageQuestionsButton.setOnAction(e -> showQuestionsCrudScreen());
         manageOptionsButton.setOnAction(e -> showOptionsCrudScreen());
-
-        addSurveyButton.setOnAction(e -> showSurveyCrudScreen());
+        viewVotesButton.setOnAction(e -> showVotesScreen());
         logoutButton.setOnAction(e -> {
             isAdminLoggedIn = false;
             showMainScreen();
         });
 
-        VBox layout = new VBox(20, createHeader(), adminLabel, addSurveyButton, manageQuestionsButton, manageOptionsButton, logoutButton);
+        VBox layout = new VBox(20, createHeader(), adminLabel, addSurveyButton, manageQuestionsButton, manageOptionsButton, viewVotesButton, logoutButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
         primaryStage.setScene(scene);
@@ -371,7 +414,6 @@ public class VotingSystem extends Application {
                 loadQuestions(questionList, selectedSurvey.getId());
             }
         });
-
         updateQuestionButton.setOnAction(e -> {
             Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
             String newQuestionText = questionField.getText();
@@ -384,7 +426,6 @@ public class VotingSystem extends Application {
                 }
             }
         });
-
         deleteQuestionButton.setOnAction(e -> {
             Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
             if (selectedQuestion != null) {
@@ -402,7 +443,6 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
     }
 
@@ -413,8 +453,7 @@ public class VotingSystem extends Application {
             stmt.setInt(1, surveyId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
-                questionList.add(question);
+                questionList.add(new Question(rs.getInt("id"), rs.getString("question_text")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -458,14 +497,12 @@ public class VotingSystem extends Application {
         String query = "SELECT id, title FROM surveys";
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
-                dropdown.getItems().add(survey);
+                dropdown.getItems().add(new Survey(rs.getInt("id"), rs.getString("title")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-
 
     private void showOptionsCrudScreen() {
         Label titleLabel = new Label("Manage Options");
@@ -505,7 +542,6 @@ public class VotingSystem extends Application {
                 loadOptions(optionList, selectedQuestion.getId());
             }
         });
-
         updateOptionButton.setOnAction(e -> {
             Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
             String newOptionText = optionField.getText();
@@ -518,7 +554,6 @@ public class VotingSystem extends Application {
                 }
             }
         });
-
         deleteOptionButton.setOnAction(e -> {
             Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
             if (selectedOption != null) {
@@ -536,7 +571,6 @@ public class VotingSystem extends Application {
         VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
-
         primaryStage.setScene(scene);
     }
 
@@ -547,8 +581,7 @@ public class VotingSystem extends Application {
             stmt.setInt(1, surveyId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
-                dropdown.getItems().add(question);
+                dropdown.getItems().add(new Question(rs.getInt("id"), rs.getString("question_text")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -562,8 +595,7 @@ public class VotingSystem extends Application {
             stmt.setInt(1, questionId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Option option = new Option(rs.getInt("id"), rs.getString("option_text"));
-                optionList.add(option);
+                optionList.add(new Option(rs.getInt("id"), rs.getString("option_text")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -602,10 +634,6 @@ public class VotingSystem extends Application {
         }
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
-
     public static class Survey {
         private int id;
         private String title;
@@ -614,7 +642,6 @@ public class VotingSystem extends Application {
             this.id = id;
             this.title = title;
         }
-
         public int getId() {
             return id;
         }
@@ -635,7 +662,6 @@ public class VotingSystem extends Application {
             this.id = id;
             this.text = text;
         }
-
         public int getId() {
             return id;
         }
@@ -656,7 +682,6 @@ public class VotingSystem extends Application {
             this.id = id;
             this.text = text;
         }
-
         public int getId() {
             return id;
         }
@@ -667,5 +692,35 @@ public class VotingSystem extends Application {
         public String toString() {
             return text;
         }
+    }
+
+    public static class VoteRecord {
+        private String surveyTitle;
+        private String questionText;
+        private String optionText;
+        private String votedAt;
+
+        public VoteRecord(String surveyTitle, String questionText, String optionText, String votedAt) {
+            this.surveyTitle = surveyTitle;
+            this.questionText = questionText;
+            this.optionText = optionText;
+            this.votedAt = votedAt;
+        }
+        public String getSurveyTitle() {
+            return surveyTitle;
+        }
+        public String getQuestionText() {
+            return questionText;
+        }
+        public String getOptionText() {
+            return optionText;
+        }
+        public String getVotedAt() {
+            return votedAt;
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
     }
 }
