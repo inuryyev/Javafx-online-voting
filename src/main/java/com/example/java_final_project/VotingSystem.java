@@ -16,6 +16,10 @@ public class VotingSystem extends Application {
     private Connection connection;
     private boolean isAdminLoggedIn = false;
 
+
+    private ObservableList<Question> currentQuestions;
+    private int currentQuestionIndex;
+
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -44,7 +48,8 @@ public class VotingSystem extends Application {
                 showLoginScreen();
             }
         });
-        surveysButton.setOnAction(e -> showSurveysScreen());
+
+        surveysButton.setOnAction(e -> showUserSurveySelectionScreen());
 
         VBox layout = new VBox(20, titleLabel, adminPanelButton, surveysButton);
         layout.setAlignment(Pos.CENTER);
@@ -55,6 +60,117 @@ public class VotingSystem extends Application {
         primaryStage.show();
     }
 
+    private void showUserSurveySelectionScreen() {
+        Label titleLabel = new Label("Select Survey");
+        ComboBox<Survey> surveyDropdown = new ComboBox<>();
+        ObservableList<Survey> surveys = FXCollections.observableArrayList();
+        String query = "SELECT id, title FROM surveys";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                surveys.add(new Survey(rs.getInt("id"), rs.getString("title")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        surveyDropdown.setItems(surveys);
+
+        Button startButton = new Button("Start Survey");
+        startButton.setOnAction(e -> {
+            Survey selectedSurvey = surveyDropdown.getValue();
+            if (selectedSurvey == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Lütfen bir survey seçiniz.");
+                alert.showAndWait();
+            } else {
+                showUserSurveyScreen(selectedSurvey);
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showMainScreen());
+
+        VBox layout = new VBox(20, titleLabel, surveyDropdown, startButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+        primaryStage.setScene(scene);
+    }
+
+    private void showUserSurveyScreen(Survey survey) {
+        currentQuestions = FXCollections.observableArrayList();
+        currentQuestionIndex = 0;
+        String query = "SELECT id, question_text FROM questions WHERE survey_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, survey.getId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                currentQuestions.add(new Question(rs.getInt("id"), rs.getString("question_text")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        if (currentQuestions.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Bu survey için soru bulunamadı.");
+            alert.showAndWait();
+            showMainScreen();
+            return;
+        }
+
+        showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
+    }
+
+    private void showQuestionScreen(Survey survey, Question question) {
+
+        ObservableList<Option> options = FXCollections.observableArrayList();
+        String query = "SELECT id, option_text FROM options WHERE question_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, question.getId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                options.add(new Option(rs.getInt("id"), rs.getString("option_text")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        Label surveyTitleLabel = new Label(survey.getTitle());
+        surveyTitleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        Label questionLabel = new Label(question.getText());
+        questionLabel.setStyle("-fx-font-size: 18px;");
+
+        ToggleGroup toggleGroup = new ToggleGroup();
+        VBox optionsBox = new VBox(10);
+        for (Option opt : options) {
+            RadioButton radioButton = new RadioButton(opt.getText());
+            radioButton.setUserData(opt);
+            radioButton.setToggleGroup(toggleGroup);
+            optionsBox.getChildren().add(radioButton);
+        }
+
+        Label errorLabel = new Label();
+        Button submitButton = new Button("Submit");
+        submitButton.setOnAction(e -> {
+            RadioButton selected = (RadioButton) toggleGroup.getSelectedToggle();
+            if (selected == null) {
+                errorLabel.setText("Lütfen bir seçenek seçiniz.");
+                return;
+            }
+            currentQuestionIndex++;
+            if (currentQuestionIndex < currentQuestions.size()) {
+                showQuestionScreen(survey, currentQuestions.get(currentQuestionIndex));
+            } else {
+                Alert finishedAlert = new Alert(Alert.AlertType.INFORMATION, "Survey bitdi.");
+                finishedAlert.showAndWait();
+                showMainScreen();
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showMainScreen());
+
+        VBox layout = new VBox(20, surveyTitleLabel, questionLabel, optionsBox, errorLabel, submitButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+        primaryStage.setScene(scene);
+    }
 
     private void showSurveyCrudScreen() {
         Label titleLabel = new Label("Manage Surveys");
@@ -150,9 +266,6 @@ public class VotingSystem extends Application {
         }
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
 
     private VBox createHeader() {
         Button homeButton = new Button("Home Page");
@@ -487,19 +600,9 @@ public class VotingSystem extends Application {
         }
     }
 
-    private void showSurveysScreen() {
-        Label surveysLabel = new Label("Surveys Page");
-        Button backButton = new Button("Back");
-
-        backButton.setOnAction(e -> showMainScreen());
-
-        VBox layout = new VBox(20, createHeader(), surveysLabel, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-
-        primaryStage.setScene(scene);
+    public static void main(String[] args) {
+        launch(args);
     }
-
 
     public static class Survey {
         private int id;
