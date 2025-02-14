@@ -228,6 +228,7 @@ public class VotingSystem extends Application {
     private void showQuestionsCrudScreen() {
         Label titleLabel = new Label("Manage Questions");
         ComboBox<String> surveyDropdown = new ComboBox<>();
+        Label surveyLabel = new Label("Select Survey:");
         TextField questionField = new TextField();
         questionField.setPromptText("Question Text");
         Button addQuestionButton = new Button("Add Question");
@@ -271,7 +272,7 @@ public class VotingSystem extends Application {
         Button backButton = new Button("Back");
         backButton.setOnAction(e -> showAdminPanel());
 
-        VBox layout = new VBox(20, titleLabel, surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
+        VBox layout = new VBox(20, titleLabel, surveyLabel,surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
 
