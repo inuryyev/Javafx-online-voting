@@ -104,17 +104,36 @@ public class VotingSystem extends Application {
 
     private void showAdminPanel() {
         Label adminLabel = new Label("Admin Panel");
+        Button addSurveyButton = new Button("Add Survey");
+        Button manageQuestionsButton = new Button("Manage Questions");
+        Button manageOptionsButton = new Button("Manage Options");
         Button logoutButton = new Button("Logout");
+
+        addSurveyButton.setOnAction(e -> showSurveyCrudScreen());
+        manageQuestionsButton.setOnAction(e -> showQuestionsCrudScreen());
+        manageOptionsButton.setOnAction(e -> showOptionsCrudScreen());
         logoutButton.setOnAction(e -> {
             isAdminLoggedIn = false;
             showMainScreen();
         });
 
-        VBox layout = new VBox(20, createHeader(), adminLabel, logoutButton);
+        VBox layout = new VBox(20, createHeader(), adminLabel, addSurveyButton, manageQuestionsButton, manageOptionsButton, logoutButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
+    }
+
+    private void showSurveyCrudScreen() {
+
+    }
+
+    private void showQuestionsCrudScreen() {
+
+    }
+
+    private void showOptionsCrudScreen() {
+
     }
 
     private void showSurveysScreen() {
@@ -130,7 +149,7 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[]args){
         launch(args);
     }
 }
