@@ -182,20 +182,29 @@ public class VotingSystem extends Application {
         }
     }
 
+    // Votes page shown from the admin panel
     private void showVotesScreen() {
         TableView<VoteRecord> table = new TableView<>();
+
+        TableColumn<VoteRecord, String> voteIdCol = new TableColumn<>("Vote ID");
+        voteIdCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getVoteId()));
+
         TableColumn<VoteRecord, String> surveyCol = new TableColumn<>("Survey");
         surveyCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getSurveyTitle()));
+
         TableColumn<VoteRecord, String> questionCol = new TableColumn<>("Question");
         questionCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getQuestionText()));
+
         TableColumn<VoteRecord, String> optionCol = new TableColumn<>("Option");
         optionCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getOptionText()));
+
         TableColumn<VoteRecord, String> dateCol = new TableColumn<>("Voted At");
         dateCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getVotedAt()));
-        table.getColumns().addAll(surveyCol, questionCol, optionCol, dateCol);
+
+        table.getColumns().addAll(voteIdCol, surveyCol, questionCol, optionCol, dateCol);
 
         ObservableList<VoteRecord> votesList = FXCollections.observableArrayList();
-        String query = "SELECT s.title AS survey_title, q.question_text, o.option_text, v.voted_at " +
+        String query = "SELECT v.id AS vote_id, s.title AS survey_title, q.question_text, o.option_text, v.voted_at " +
                 "FROM votes v " +
                 "JOIN surveys s ON v.survey_id = s.id " +
                 "JOIN questions q ON v.question_id = q.id " +
@@ -203,10 +212,13 @@ public class VotingSystem extends Application {
                 "ORDER BY v.voted_at";
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                votesList.add(new VoteRecord(rs.getString("survey_title"),
+                votesList.add(new VoteRecord(
+                        rs.getString("vote_id"),
+                        rs.getString("survey_title"),
                         rs.getString("question_text"),
                         rs.getString("option_text"),
-                        rs.getString("voted_at")));
+                        rs.getString("voted_at")
+                ));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -695,16 +707,21 @@ public class VotingSystem extends Application {
     }
 
     public static class VoteRecord {
+        private String voteId;
         private String surveyTitle;
         private String questionText;
         private String optionText;
         private String votedAt;
 
-        public VoteRecord(String surveyTitle, String questionText, String optionText, String votedAt) {
+        public VoteRecord(String voteId, String surveyTitle, String questionText, String optionText, String votedAt) {
+            this.voteId = voteId;
             this.surveyTitle = surveyTitle;
             this.questionText = questionText;
             this.optionText = optionText;
             this.votedAt = votedAt;
+        }
+        public String getVoteId() {
+            return voteId;
         }
         public String getSurveyTitle() {
             return surveyTitle;
