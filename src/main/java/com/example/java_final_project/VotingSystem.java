@@ -55,6 +55,7 @@ public class VotingSystem extends Application {
         primaryStage.show();
     }
 
+
     private void showSurveyCrudScreen() {
         Label titleLabel = new Label("Manage Surveys");
         TextField surveyTitleField = new TextField();
@@ -62,8 +63,8 @@ public class VotingSystem extends Application {
         Button addSurveyButton = new Button("Add Survey");
         Button updateSurveyButton = new Button("Update Selected");
         Button deleteSurveyButton = new Button("Delete Selected");
-        ListView<String> surveyListView = new ListView<>();
-        ObservableList<String> surveyList = FXCollections.observableArrayList();
+        ListView<Survey> surveyListView = new ListView<>();
+        ObservableList<Survey> surveyList = FXCollections.observableArrayList();
 
         loadSurveys(surveyList);
         surveyListView.setItems(surveyList);
@@ -78,19 +79,19 @@ public class VotingSystem extends Application {
         });
 
         updateSurveyButton.setOnAction(e -> {
-            String selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
+            Survey selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
             String newTitle = surveyTitleField.getText();
             if (selectedSurvey != null && !newTitle.isEmpty()) {
-                updateSurvey(selectedSurvey, newTitle);
+                updateSurvey(selectedSurvey.getId(), newTitle);
                 surveyTitleField.clear();
                 loadSurveys(surveyList);
             }
         });
 
         deleteSurveyButton.setOnAction(e -> {
-            String selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
+            Survey selectedSurvey = surveyListView.getSelectionModel().getSelectedItem();
             if (selectedSurvey != null) {
-                deleteSurvey(selectedSurvey);
+                deleteSurvey(selectedSurvey.getId());
                 loadSurveys(surveyList);
             }
         });
@@ -105,12 +106,13 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    private void loadSurveys(ObservableList<String> surveyList) {
+    private void loadSurveys(ObservableList<Survey> surveyList) {
         surveyList.clear();
-        String query = "SELECT title FROM surveys";
+        String query = "SELECT id, title FROM surveys";
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                surveyList.add(rs.getString("title"));
+                Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
+                surveyList.add(survey);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -127,21 +129,21 @@ public class VotingSystem extends Application {
         }
     }
 
-    private void updateSurvey(String oldTitle, String newTitle) {
-        String query = "UPDATE surveys SET title = ? WHERE title = ?";
+    private void updateSurvey(int id, String newTitle) {
+        String query = "UPDATE surveys SET title = ? WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, newTitle);
-            stmt.setString(2, oldTitle);
+            stmt.setInt(2, id);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void deleteSurvey(String title) {
-        String query = "DELETE FROM surveys WHERE title = ?";
+    private void deleteSurvey(int id) {
+        String query = "DELETE FROM surveys WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, title);
+            stmt.setInt(1, id);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -224,81 +226,90 @@ public class VotingSystem extends Application {
     }
 
 
-
     private void showQuestionsCrudScreen() {
         Label titleLabel = new Label("Manage Questions");
-        ComboBox<String> surveyDropdown = new ComboBox<>();
         Label surveyLabel = new Label("Select Survey:");
+        ComboBox<Survey> surveyDropdown = new ComboBox<>();
         TextField questionField = new TextField();
         questionField.setPromptText("Question Text");
         Button addQuestionButton = new Button("Add Question");
         Button updateQuestionButton = new Button("Update Selected");
         Button deleteQuestionButton = new Button("Delete Selected");
-        ListView<String> questionListView = new ListView<>();
-        ObservableList<String> questionList = FXCollections.observableArrayList();
+        ListView<Question> questionListView = new ListView<>();
+        ObservableList<Question> questionList = FXCollections.observableArrayList();
 
         loadSurveysIntoDropdown(surveyDropdown);
-        surveyDropdown.setOnAction(e -> loadQuestions(questionList, surveyDropdown.getValue()));
+        surveyDropdown.setOnAction(e -> {
+            Survey selectedSurvey = surveyDropdown.getValue();
+            if (selectedSurvey != null) {
+                loadQuestions(questionList, selectedSurvey.getId());
+            }
+        });
         questionListView.setItems(questionList);
 
         addQuestionButton.setOnAction(e -> {
-            String surveyTitle = surveyDropdown.getValue();
+            Survey selectedSurvey = surveyDropdown.getValue();
             String questionText = questionField.getText();
-            if (surveyTitle != null && !questionText.isEmpty()) {
-                addQuestion(surveyTitle, questionText);
+            if (selectedSurvey != null && !questionText.isEmpty()) {
+                addQuestion(selectedSurvey.getId(), questionText);
                 questionField.clear();
-                loadQuestions(questionList, surveyTitle);
+                loadQuestions(questionList, selectedSurvey.getId());
             }
         });
 
         updateQuestionButton.setOnAction(e -> {
-            String selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
+            Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
             String newQuestionText = questionField.getText();
             if (selectedQuestion != null && !newQuestionText.isEmpty()) {
-                updateQuestion(selectedQuestion, newQuestionText);
+                updateQuestion(selectedQuestion.getId(), newQuestionText);
                 questionField.clear();
-                loadQuestions(questionList, surveyDropdown.getValue());
+                Survey selectedSurvey = surveyDropdown.getValue();
+                if (selectedSurvey != null) {
+                    loadQuestions(questionList, selectedSurvey.getId());
+                }
             }
         });
 
         deleteQuestionButton.setOnAction(e -> {
-            String selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
+            Question selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
             if (selectedQuestion != null) {
-                deleteQuestion(selectedQuestion);
-                loadQuestions(questionList, surveyDropdown.getValue());
+                deleteQuestion(selectedQuestion.getId());
+                Survey selectedSurvey = surveyDropdown.getValue();
+                if (selectedSurvey != null) {
+                    loadQuestions(questionList, selectedSurvey.getId());
+                }
             }
         });
 
         Button backButton = new Button("Back");
         backButton.setOnAction(e -> showAdminPanel());
 
-        VBox layout = new VBox(20, titleLabel, surveyLabel,surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
+        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
         layout.setAlignment(Pos.CENTER);
         Scene scene = new Scene(layout, 800, 600);
 
         primaryStage.setScene(scene);
     }
 
-
-
-    private void loadQuestions(ObservableList<String> questionList, String surveyTitle) {
+    private void loadQuestions(ObservableList<Question> questionList, int surveyId) {
         questionList.clear();
-        String query = "SELECT question_text FROM questions WHERE survey_id = (SELECT id FROM surveys WHERE title = ?)";
+        String query = "SELECT id, question_text FROM questions WHERE survey_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, surveyTitle);
+            stmt.setInt(1, surveyId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                questionList.add(rs.getString("question_text"));
+                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
+                questionList.add(question);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void addQuestion(String surveyTitle, String questionText) {
-        String query = "INSERT INTO questions (survey_id, question_text) VALUES ((SELECT id FROM surveys WHERE title = ?), ?)";
+    private void addQuestion(int surveyId, String questionText) {
+        String query = "INSERT INTO questions (survey_id, question_text) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, surveyTitle);
+            stmt.setInt(1, surveyId);
             stmt.setString(2, questionText);
             stmt.executeUpdate();
         } catch (SQLException e) {
@@ -306,34 +317,34 @@ public class VotingSystem extends Application {
         }
     }
 
-    private void updateQuestion(String oldQuestion, String newQuestion) {
-        String query = "UPDATE questions SET question_text = ? WHERE question_text = ?";
+    private void updateQuestion(int questionId, String newQuestionText) {
+        String query = "UPDATE questions SET question_text = ? WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, newQuestion);
-            stmt.setString(2, oldQuestion);
+            stmt.setString(1, newQuestionText);
+            stmt.setInt(2, questionId);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void deleteQuestion(String questionText) {
-        String query = "DELETE FROM questions WHERE question_text = ?";
+    private void deleteQuestion(int questionId) {
+        String query = "DELETE FROM questions WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, questionText);
+            stmt.setInt(1, questionId);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-
-    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown) {
+    private void loadSurveysIntoDropdown(ComboBox<Survey> dropdown) {
         dropdown.getItems().clear();
-        String query = "SELECT question_text FROM questions";
+        String query = "SELECT id, title FROM surveys";
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                dropdown.getItems().add(rs.getString("question_text"));
+                Survey survey = new Survey(rs.getInt("id"), rs.getString("title"));
+                dropdown.getItems().add(survey);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -341,9 +352,140 @@ public class VotingSystem extends Application {
     }
 
 
+    private void showOptionsCrudScreen() {
+        Label titleLabel = new Label("Manage Options");
+        Label surveyLabel = new Label("Select Survey:");
+        ComboBox<Survey> surveyDropdown = new ComboBox<>();
+        Label questionLabel = new Label("Select Question:");
+        ComboBox<Question> questionDropdown = new ComboBox<>();
+        TextField optionField = new TextField();
+        optionField.setPromptText("Option Text");
+        Button addOptionButton = new Button("Add Option");
+        Button updateOptionButton = new Button("Update Selected");
+        Button deleteOptionButton = new Button("Delete Selected");
+        ListView<Option> optionListView = new ListView<>();
+        ObservableList<Option> optionList = FXCollections.observableArrayList();
 
+        loadSurveysIntoDropdown(surveyDropdown);
+        surveyDropdown.setOnAction(e -> {
+            Survey selectedSurvey = surveyDropdown.getValue();
+            if (selectedSurvey != null) {
+                loadQuestionsIntoDropdown(questionDropdown, selectedSurvey.getId());
+            }
+        });
+        questionDropdown.setOnAction(e -> {
+            Question selectedQuestion = questionDropdown.getValue();
+            if (selectedQuestion != null) {
+                loadOptions(optionList, selectedQuestion.getId());
+            }
+        });
+        optionListView.setItems(optionList);
 
+        addOptionButton.setOnAction(e -> {
+            Question selectedQuestion = questionDropdown.getValue();
+            String optionText = optionField.getText();
+            if (selectedQuestion != null && !optionText.isEmpty()) {
+                addOption(selectedQuestion.getId(), optionText);
+                optionField.clear();
+                loadOptions(optionList, selectedQuestion.getId());
+            }
+        });
 
+        updateOptionButton.setOnAction(e -> {
+            Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
+            String newOptionText = optionField.getText();
+            if (selectedOption != null && !newOptionText.isEmpty()) {
+                updateOption(selectedOption.getId(), newOptionText);
+                optionField.clear();
+                Question selectedQuestion = questionDropdown.getValue();
+                if (selectedQuestion != null) {
+                    loadOptions(optionList, selectedQuestion.getId());
+                }
+            }
+        });
+
+        deleteOptionButton.setOnAction(e -> {
+            Option selectedOption = optionListView.getSelectionModel().getSelectedItem();
+            if (selectedOption != null) {
+                deleteOption(selectedOption.getId());
+                Question selectedQuestion = questionDropdown.getValue();
+                if (selectedQuestion != null) {
+                    loadOptions(optionList, selectedQuestion.getId());
+                }
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showAdminPanel());
+
+        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+    }
+
+    private void loadQuestionsIntoDropdown(ComboBox<Question> dropdown, int surveyId) {
+        dropdown.getItems().clear();
+        String query = "SELECT id, question_text FROM questions WHERE survey_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, surveyId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Question question = new Question(rs.getInt("id"), rs.getString("question_text"));
+                dropdown.getItems().add(question);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadOptions(ObservableList<Option> optionList, int questionId) {
+        optionList.clear();
+        String query = "SELECT id, option_text FROM options WHERE question_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, questionId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Option option = new Option(rs.getInt("id"), rs.getString("option_text"));
+                optionList.add(option);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addOption(int questionId, String optionText) {
+        String query = "INSERT INTO options (question_id, option_text) VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, questionId);
+            stmt.setString(2, optionText);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateOption(int optionId, String newOptionText) {
+        String query = "UPDATE options SET option_text = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, newOptionText);
+            stmt.setInt(2, optionId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteOption(int optionId) {
+        String query = "DELETE FROM options WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, optionId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     private void showSurveysScreen() {
         Label surveysLabel = new Label("Surveys Page");
@@ -358,134 +500,73 @@ public class VotingSystem extends Application {
         primaryStage.setScene(scene);
     }
 
-    private void showOptionsCrudScreen() {
-        Label titleLabel = new Label("Manage Options");
-        Label surveyLabel = new Label("Select Survey:");
-        ComboBox<String> surveyDropdown = new ComboBox<>();
-        Label questionLabel = new Label("Select Question:");
-        ComboBox<String> questionDropdown = new ComboBox<>();
-        TextField optionField = new TextField();
-        optionField.setPromptText("Option Text");
-        Button addOptionButton = new Button("Add Option");
-        Button updateOptionButton = new Button("Update Selected");
-        Button deleteOptionButton = new Button("Delete Selected");
-        ListView<String> optionListView = new ListView<>();
-        ObservableList<String> optionList = FXCollections.observableArrayList();
 
-        loadSurveysIntoDropdown(surveyDropdown);
-        surveyDropdown.setOnAction(e -> loadQuestionsIntoDropdown(questionDropdown, surveyDropdown.getValue()));
-        questionDropdown.setOnAction(e -> loadOptions(optionList, questionDropdown.getValue()));
-        optionListView.setItems(optionList);
+    public static class Survey {
+        private int id;
+        private String title;
 
-        addOptionButton.setOnAction(e -> {
-            String questionText = questionDropdown.getValue();
-            String optionText = optionField.getText();
-            if (questionText != null && !optionText.isEmpty()) {
-                addOption(questionText, optionText);
-                optionField.clear();
-                loadOptions(optionList, questionText);
-            }
-        });
+        public Survey(int id, String title) {
+            this.id = id;
+            this.title = title;
+        }
 
-        updateOptionButton.setOnAction(e -> {
-            String selectedOption = optionListView.getSelectionModel().getSelectedItem();
-            String newOptionText = optionField.getText();
-            if (selectedOption != null && !newOptionText.isEmpty()) {
-                updateOption(selectedOption, newOptionText);
-                optionField.clear();
-                loadOptions(optionList, questionDropdown.getValue());
-            }
-        });
+        public int getId() {
+            return id;
+        }
 
-        deleteOptionButton.setOnAction(e -> {
-            String selectedOption = optionListView.getSelectionModel().getSelectedItem();
-            if (selectedOption != null) {
-                deleteOption(selectedOption);
-                loadOptions(optionList, questionDropdown.getValue());
-            }
-        });
+        public String getTitle() {
+            return title;
+        }
 
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showAdminPanel());
-
-        VBox layout = new VBox(20, titleLabel, surveyLabel, surveyDropdown, questionLabel, questionDropdown, optionField, addOptionButton, updateOptionButton, optionListView, deleteOptionButton, backButton);
-        layout.setAlignment(Pos.CENTER);
-        Scene scene = new Scene(layout, 800, 600);
-
-        primaryStage.setScene(scene);
-    }
-
-    private void loadSurveysIntoDropdown(ComboBox<String> dropdown) {
-        dropdown.getItems().clear();
-        String query = "SELECT title FROM surveys";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                dropdown.getItems().add(rs.getString("title"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        @Override
+        public String toString() {
+            return title;
         }
     }
 
-    private void loadQuestionsIntoDropdown(ComboBox<String> dropdown, String surveyTitle) {
-        dropdown.getItems().clear();
-        String query = "SELECT question_text FROM questions WHERE survey_id = (SELECT id FROM surveys WHERE title = ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, surveyTitle);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                dropdown.getItems().add(rs.getString("question_text"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+    public static class Question {
+        private int id;
+        private String text;
+
+        public Question(int id, String text) {
+            this.id = id;
+            this.text = text;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        @Override
+        public String toString() {
+            return text;
         }
     }
 
-    private void loadOptions(ObservableList<String> optionList, String questionText) {
-        optionList.clear();
-        String query = "SELECT option_text FROM options WHERE question_id = (SELECT id FROM questions WHERE question_text = ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, questionText);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                optionList.add(rs.getString("option_text"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+    public static class Option {
+        private int id;
+        private String text;
+
+        public Option(int id, String text) {
+            this.id = id;
+            this.text = text;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        @Override
+        public String toString() {
+            return text;
         }
     }
-
-    private void addOption(String questionText, String optionText) {
-        String query = "INSERT INTO options (question_id, option_text) VALUES ((SELECT id FROM questions WHERE question_text = ?), ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, questionText);
-            stmt.setString(2, optionText);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateOption(String oldOption, String newOption) {
-        String query = "UPDATE options SET option_text = ? WHERE option_text = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, newOption);
-            stmt.setString(2, oldOption);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void deleteOption(String optionText) {
-        String query = "DELETE FROM options WHERE option_text = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, optionText);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-
 }
