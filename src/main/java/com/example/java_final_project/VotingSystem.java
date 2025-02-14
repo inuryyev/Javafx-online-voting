@@ -226,7 +226,114 @@ public class VotingSystem extends Application {
 
 
     private void showQuestionsCrudScreen() {
+        Label titleLabel = new Label("Manage Questions");
+        ComboBox<String> surveyDropdown = new ComboBox<>();
+        TextField questionField = new TextField();
+        questionField.setPromptText("Question Text");
+        Button addQuestionButton = new Button("Add Question");
+        Button updateQuestionButton = new Button("Update Selected");
+        Button deleteQuestionButton = new Button("Delete Selected");
+        ListView<String> questionListView = new ListView<>();
+        ObservableList<String> questionList = FXCollections.observableArrayList();
 
+        loadSurveysIntoDropdown(surveyDropdown);
+        surveyDropdown.setOnAction(e -> loadQuestions(questionList, surveyDropdown.getValue()));
+        questionListView.setItems(questionList);
+
+        addQuestionButton.setOnAction(e -> {
+            String surveyTitle = surveyDropdown.getValue();
+            String questionText = questionField.getText();
+            if (surveyTitle != null && !questionText.isEmpty()) {
+                addQuestion(surveyTitle, questionText);
+                questionField.clear();
+                loadQuestions(questionList, surveyTitle);
+            }
+        });
+
+        updateQuestionButton.setOnAction(e -> {
+            String selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
+            String newQuestionText = questionField.getText();
+            if (selectedQuestion != null && !newQuestionText.isEmpty()) {
+                updateQuestion(selectedQuestion, newQuestionText);
+                questionField.clear();
+                loadQuestions(questionList, surveyDropdown.getValue());
+            }
+        });
+
+        deleteQuestionButton.setOnAction(e -> {
+            String selectedQuestion = questionListView.getSelectionModel().getSelectedItem();
+            if (selectedQuestion != null) {
+                deleteQuestion(selectedQuestion);
+                loadQuestions(questionList, surveyDropdown.getValue());
+            }
+        });
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showAdminPanel());
+
+        VBox layout = new VBox(20, titleLabel, surveyDropdown, questionField, addQuestionButton, updateQuestionButton, questionListView, deleteQuestionButton, backButton);
+        layout.setAlignment(Pos.CENTER);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+    }
+
+    private void loadSurveysIntoDropdown(ComboBox<String> dropdown) {
+        dropdown.getItems().clear();
+        String query = "SELECT title FROM surveys";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                dropdown.getItems().add(rs.getString("title"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadQuestions(ObservableList<String> questionList, String surveyTitle) {
+        questionList.clear();
+        String query = "SELECT question_text FROM questions WHERE survey_id = (SELECT id FROM surveys WHERE title = ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, surveyTitle);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                questionList.add(rs.getString("question_text"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addQuestion(String surveyTitle, String questionText) {
+        String query = "INSERT INTO questions (survey_id, question_text) VALUES ((SELECT id FROM surveys WHERE title = ?), ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, surveyTitle);
+            stmt.setString(2, questionText);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateQuestion(String oldQuestion, String newQuestion) {
+        String query = "UPDATE questions SET question_text = ? WHERE question_text = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, newQuestion);
+            stmt.setString(2, oldQuestion);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteQuestion(String questionText) {
+        String query = "DELETE FROM questions WHERE question_text = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, questionText);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showOptionsCrudScreen() {
