@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="20" alignment="CENTER"
+      xmlns="http://javafx.com/javafx/8"
+      xmlns:fx="http://javafx.com/fxml/1">
+
+    <Label text="Manage Questions"/>
+
+    <Label text="Select Survey:"/>
+    <ComboBox fx:id="surveyDropdown"/>
+
+    <TextField fx:id="questionField" promptText="Question Text"/>
+
+    <Button fx:id="addQuestionButton" text="Add Question"/>
+
+    <Button fx:id="updateQuestionButton" text="Update Selected"/>
+
+    <ListView fx:id="questionListView"/>
+
+    <Button fx:id="deleteQuestionButton" text="Delete Selected"/>
+
+    <Button fx:id="backButton" text="Back"/>
+
+</VBox>

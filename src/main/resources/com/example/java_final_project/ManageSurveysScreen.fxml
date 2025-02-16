@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="20" alignment="CENTER"
+      xmlns="http://javafx.com/javafx/8"
+      xmlns:fx="http://javafx.com/fxml/1">
+
+    <Label text="Manage Surveys"/>
+
+    <TextField fx:id="surveyTitleField" promptText="Survey Title"/>
+
+    <Button fx:id="addSurveyButton" text="Add Survey"/>
+
+    <Button fx:id="updateSurveyButton" text="Update Selected"/>
+
+    <ListView fx:id="surveyListView"/>
+
+    <Button fx:id="deleteSurveyButton" text="Delete Selected"/>
+
+    <Button fx:id="backButton" text="Back"/>
+
+</VBox>

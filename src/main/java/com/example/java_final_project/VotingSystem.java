@@ -182,7 +182,7 @@ public class VotingSystem extends Application {
         }
     }
 
-    // Votes page shown from the admin panel
+
     private void showVotesScreen() {
         TableView<VoteRecord> table = new TableView<>();
 
